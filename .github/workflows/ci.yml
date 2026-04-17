@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        if: ${{ hashFiles('workspace/go.mod') != '' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: workspace/go.mod
+
+      - name: Verify formatting
+        if: ${{ hashFiles('workspace/go.mod') != '' }}
+        run: test -z "$(find workspace -name '*.go' -exec gofmt -l {} +)"
+
+      - name: Test
+        if: ${{ hashFiles('workspace/go.mod') != '' }}
+        working-directory: workspace
+        run: go test ./...
