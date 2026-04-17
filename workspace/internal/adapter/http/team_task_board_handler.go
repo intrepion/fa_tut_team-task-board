@@ -20,7 +20,7 @@ func NewTaskHandler(service contracts.TeamTaskService) *TeamTaskHandler {
 }
 
 func (h *TeamTaskHandler) ListTasks(c echo.Context) error {
-	tasks, err := h.service.ListTasks(contracts.AnonymousPrincipal{})
+	tasks, err := h.service.ListTasks(principalFromContext(c))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, contracts.ErrorResponse{Message: "internal server error"})
 	}
@@ -50,7 +50,7 @@ func (h *TeamTaskHandler) GetTask(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, contracts.ErrorResponse{Message: "task id must not be empty"})
 	}
 
-	task, err := h.service.GetTask(taskID, contracts.AnonymousPrincipal{})
+	task, err := h.service.GetTask(taskID, principalFromContext(c))
 	if err != nil {
 		if err == contracts.ErrTaskNotFound {
 			return c.JSON(http.StatusNotFound, contracts.ErrorResponse{Message: "task not found"})
@@ -67,9 +67,25 @@ func (h *TeamTaskHandler) DeleteTask(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, contracts.ErrorResponse{Message: "task id must not be empty"})
 	}
 
-	err := h.service.DeleteTask(taskID, contracts.AnonymousPrincipal{})
+	err := h.service.DeleteTask(taskID, principalFromContext(c))
 	if err != nil {
-		return c.JSON(http.StatusForbidden, contracts.ErrorResponse{Message: "forbidden"})
+		switch err {
+		case contracts.ErrTaskNotFound:
+			return c.JSON(http.StatusNotFound, contracts.ErrorResponse{Message: "task not found"})
+		default:
+			return c.JSON(http.StatusForbidden, contracts.ErrorResponse{Message: "forbidden"})
+		}
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+func principalFromContext(c echo.Context) contracts.Principal {
+	switch c.Request().Header.Get("X-Team-Task-Principal") {
+	case "admin":
+		return contracts.AdminPrincipal{UserID: c.Request().Header.Get("X-Team-Task-User-ID")}
+	case "user":
+		return contracts.UserPrincipal{UserID: c.Request().Header.Get("X-Team-Task-User-ID")}
+	default:
+		return contracts.AnonymousPrincipal{}
+	}
 }
