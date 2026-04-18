@@ -65,4 +65,68 @@ void main() {
       ),
     );
   });
+
+  test('reloads the board after creating a task', () async {
+    final api = MockTeamTaskApi();
+    when(
+      () => api.createTask(
+        ownerUserId: 'user-alice',
+        text: 'Draft release notes',
+        visibility: 'public',
+      ),
+    ).thenAnswer(
+      (_) async => const TeamTask(
+        id: 'task-1',
+        ownerUserId: 'user-alice',
+        text: 'Draft release notes',
+        visibility: 'public',
+      ),
+    );
+    when(
+      () => api.getTasks(principal: 'user', userId: 'user-alice'),
+    ).thenAnswer(
+      (_) async => const TeamTaskListResponse(
+        tasks: [
+          TeamTask(
+            id: 'task-1',
+            ownerUserId: 'user-alice',
+            text: 'Draft release notes',
+            visibility: 'public',
+          ),
+        ],
+      ),
+    );
+
+    final result = await addTeamTask(
+      principal: 'user',
+      actingUserId: 'user-alice',
+      ownerUserId: 'user-alice',
+      text: 'Draft release notes',
+      visibility: 'public',
+      api: api,
+    );
+
+    expect(result.tasks.single.text, 'Draft release notes');
+    expect(result.errorMessage, isNull);
+  });
+
+  test('reloads the board after deleting a task', () async {
+    final api = MockTeamTaskApi();
+    when(
+      () => api.deleteTask('task-1', principal: 'admin', userId: 'user-admin'),
+    ).thenAnswer((_) async {});
+    when(
+      () => api.getTasks(principal: 'admin', userId: 'user-admin'),
+    ).thenAnswer((_) async => const TeamTaskListResponse(tasks: []));
+
+    final result = await deleteTeamTask(
+      principal: 'admin',
+      actingUserId: 'user-admin',
+      taskId: 'task-1',
+      api: api,
+    );
+
+    expect(result.tasks, isEmpty);
+    expect(result.errorMessage, isNull);
+  });
 }
