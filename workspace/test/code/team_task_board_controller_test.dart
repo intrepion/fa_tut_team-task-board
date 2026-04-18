@@ -43,4 +43,26 @@ void main() {
     ]);
     expect(result.errorMessage, isNull);
   });
+
+  test('rejects blank task text before calling the API', () async {
+    final api = MockTeamTaskApi();
+
+    final result = await addTeamTask(
+      principal: 'user',
+      actingUserId: 'user-alice',
+      ownerUserId: 'user-alice',
+      text: '   ',
+      visibility: 'public',
+      api: api,
+    );
+
+    expect(result.errorMessage, 'Task must not be blank.');
+    verifyNever(
+      () => api.createTask(
+        ownerUserId: any(named: 'ownerUserId'),
+        text: any(named: 'text'),
+        visibility: any(named: 'visibility'),
+      ),
+    );
+  });
 }
